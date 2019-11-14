@@ -1,0 +1,17 @@
+name: Farm
+main: me.oddlyoko.farm.Farm
+version: 1.8
+author: 0ddlyoko
+commands:
+  farm:
+    description: Help Farm
+permissions:
+  farm.create:
+    default: op
+    description: Create a new farm
+  farm.remove:
+    default: op
+    description: Remove an existing farm
+  farm.reload:
+    default: op
+    description: Reload all farms
