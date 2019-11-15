@@ -26,14 +26,6 @@
 		</developer>
 	</developers>
 
-	<!-- Configuration of repositories -->
-	<repositories>
-		<repository>
-			<id>spigot-repo</id>
-			<url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
-		</repository>
-	</repositories>
-
 	<build>
 		<defaultGoal>clean install</defaultGoal>
 		<finalName>Farm-${project.version}</finalName>
@@ -83,12 +75,20 @@
 		</plugins>
 	</build>
 
+	<!-- Configuration of repositories -->
+	<repositories>
+		<repository>
+			<id>papermc</id>
+			<url>https://papermc.io/repo/repository/maven-public/</url>
+		</repository>
+	</repositories>
+
 	<dependencies>
-		<!--Spigot API -->
+		<!-- Paper API -->
 		<dependency>
-			<groupId>org.spigotmc</groupId>
-			<artifactId>spigot-api</artifactId>
-			<version>1.12.2-R0.1-SNAPSHOT</version>
+			<groupId>com.destroystokyo.paper</groupId>
+			<artifactId>paper-api</artifactId>
+			<version>1.13.2-R0.1-SNAPSHOT</version>
 			<scope>provided</scope>
 		</dependency>
 	</dependencies>

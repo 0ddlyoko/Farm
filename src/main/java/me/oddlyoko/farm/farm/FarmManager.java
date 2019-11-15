@@ -10,7 +10,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -154,7 +153,6 @@ public class FarmManager implements Listener {
 		if (e.isCancelled())
 			return;
 		Block b = e.getBlock();
-		Player p = e.getPlayer();
 
 		Farm f = getFarm(new Location(b.getWorld(), b.getX(), b.getY() - 1, b.getZ()));
 
@@ -167,6 +165,7 @@ public class FarmManager implements Listener {
 		List<MetadataValue> vals = b.getMetadata("attempt");
 		b.setMetadata("attempt",
 				new FixedMetadataValue(me.oddlyoko.farm.Farm.get(), (vals.size() > 0) ? vals.get(0).asInt() + 1 : 1));
+		System.out.println("Adding block to list");
 		f.add(b);
 		if (vals.size() > 0 && vals.get(0).asInt() >= 4) {
 			if ((System.currentTimeMillis() - lastUpdate) / 1000 < 6) {

@@ -1,7 +1,8 @@
 name: Farm
 main: me.oddlyoko.farm.Farm
-version: 1.8
+version: 0.1
 author: 0ddlyoko
+api-version: 1.13
 commands:
   farm:
     description: Help Farm

@@ -38,13 +38,12 @@ public class FarmCommand implements CommandExecutor {
 				sender.sendMessage(
 						ChatColor.AQUA + "- /farm info" + ChatColor.YELLOW + " : See informations about plugin");
 				if (sender.hasPermission("farm.create")) {
-					sender.sendMessage(ChatColor.AQUA
-							+ "- /farm <add/create> farm [radius] [time] [carrots|potatoes|wheat|beetroot]"
-							+ ChatColor.YELLOW + " : Add a new Farm");
+					sender.sendMessage(
+							ChatColor.AQUA + "- /farm <add/create> [radius] [time] [carrots|potatoes|wheat|beetroot]"
+									+ ChatColor.YELLOW + " : Add a new Farm");
 				}
 				if (sender.hasPermission("farm.remove"))
-					sender.sendMessage(
-							ChatColor.AQUA + "- /farm <remove> [farm]" + ChatColor.YELLOW + " : Remove a Farm");
+					sender.sendMessage(ChatColor.AQUA + "- /farm <remove>" + ChatColor.YELLOW + " : Remove a Farm");
 				if (sender.hasPermission("farm.reload"))
 					sender.sendMessage(ChatColor.AQUA + "- /farm reload" + ChatColor.YELLOW + " : Reload the plugin");
 			} else if ("info".equalsIgnoreCase(args[0])) {
@@ -66,62 +65,54 @@ public class FarmCommand implements CommandExecutor {
 				}
 				if (args.length <= 1) {
 					p.sendMessage(__.PREFIX + ChatColor.RED
-							+ "Syntax: /farm <add/create> farm [radius] [time] [carrots|potatoes|wheat|beetroot]");
+							+ "Syntax: /farm <add/create> [radius] [time] [carrots|potatoes|wheat|beetroot]");
 					return true;
 				}
 				int time = 1;
 				Location loc = p.getLocation();
-				if ("farm".equalsIgnoreCase(args[1])) {
-					int radius = 10;
-					try {
-						if (args.length >= 3) {
-							radius = Integer.parseInt(args[2]);
-							if (args.length >= 4)
-								time = Integer.parseInt(args[3]);
-						}
-					} catch (Exception ex) {
-						p.sendMessage(__.PREFIX + ChatColor.RED + "Please enter corrects values for radius / time");
-						return true;
+				int radius = 10;
+				try {
+					if (args.length >= 2) {
+						radius = Integer.parseInt(args[1]);
+						if (args.length >= 3)
+							time = Integer.parseInt(args[2]);
 					}
-					if (radius <= 0) {
-						p.sendMessage(__.PREFIX + ChatColor.RED + "Please enter a correct radius");
-						return true;
-					}
-					if (time <= 0) {
-						p.sendMessage(__.PREFIX + ChatColor.RED + "Please enter a correct time");
-						return true;
-					}
-					me.oddlyoko.farm.farm.Farm.Type type = Type.CARROTS;
-					if (args.length == 5)
-						type = me.oddlyoko.farm.farm.Farm.Type.valueOf(args[4].toUpperCase());
-
-					Farm.get().getFarmManager().addFarm(loc, radius, type, time);
-					p.sendMessage(__.PREFIX + ChatColor.GREEN + "Farm succesfully added ! type = " + type
-							+ ", radius = " + radius + ", time = " + time);
+				} catch (Exception ex) {
+					p.sendMessage(__.PREFIX + ChatColor.RED + "Please enter corrects values for radius / time");
+					return true;
 				}
+				if (radius <= 0) {
+					p.sendMessage(__.PREFIX + ChatColor.RED + "Please enter a correct radius");
+					return true;
+				}
+				if (time <= 0) {
+					p.sendMessage(__.PREFIX + ChatColor.RED + "Please enter a correct time");
+					return true;
+				}
+				me.oddlyoko.farm.farm.Farm.Type type = Type.CARROTS;
+				if (args.length == 4)
+					type = me.oddlyoko.farm.farm.Farm.Type.valueOf(args[3].toUpperCase());
+
+				Farm.get().getFarmManager().addFarm(loc, radius, type, time);
+				p.sendMessage(__.PREFIX + ChatColor.GREEN + "Farm succesfully added ! type = " + type + ", radius = "
+						+ radius + ", time = " + time);
 			} else if ("remove".equalsIgnoreCase(args[0])) {
 				if (!sender.hasPermission("farm.remove")) {
 					sender.sendMessage(__.PREFIX + ChatColor.RED + "You don't have permission to execute this command");
 					return true;
 				}
 				Player p = (Player) sender;
-				if (args.length <= 1) {
-					p.sendMessage(__.PREFIX + ChatColor.RED + "Syntax: /autofarm <remove> [farm|tree]");
+
+				me.oddlyoko.farm.farm.Farm f = Farm.get().getFarmManager().getFarm(p.getLocation());
+				if (f == null) {
+					p.sendMessage(__.PREFIX + ChatColor.GREEN + "No farm found !");
 					return true;
 				}
-
-				if ("farm".equalsIgnoreCase(args[1])) {
-					me.oddlyoko.farm.farm.Farm f = Farm.get().getFarmManager().getFarm(p.getLocation());
-					if (f == null) {
-						p.sendMessage(__.PREFIX + ChatColor.GREEN + "No farm found !");
-						return true;
-					}
-					Farm.get().getFarmManager().removeFarm(f);
-					p.sendMessage(__.PREFIX + ChatColor.GREEN + "Farm succesfully supress ! type = " + f.getType()
-							+ ", radius = " + f.getRadius() + ", tickTime = " + f.getTickTime());
-				}
+				Farm.get().getFarmManager().removeFarm(f);
+				p.sendMessage(__.PREFIX + ChatColor.GREEN + "Farm successfully removed ! type = " + f.getType()
+						+ ", radius = " + f.getRadius() + ", tickTime = " + f.getTickTime());
 			} else if ("reload".equalsIgnoreCase(args[0])) {
-				if (!sender.hasPermission("autofarm.reload")) {
+				if (!sender.hasPermission("farm.reload")) {
 					sender.sendMessage(__.PREFIX + ChatColor.RED + "You don't have permission to execute this command");
 					return true;
 				}

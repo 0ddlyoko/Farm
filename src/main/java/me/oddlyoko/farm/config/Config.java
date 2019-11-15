@@ -9,6 +9,7 @@ import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
@@ -110,9 +111,11 @@ public class Config {
 				list.add(section);
 			}
 		} else {
-			for (String section : fconfig.getConfigurationSection(path).getKeys(false)) {
+			ConfigurationSection cs = fconfig.getConfigurationSection(path);
+			if (cs == null)
+				return list;
+			for (String section : cs.getKeys(false))
 				list.add(section);
-			}
 		}
 		return list;
 	}
