@@ -20,6 +20,8 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
+import me.oddlyoko.farm.Util;
+
 /**
  * Farm Copyright (C) 2019 0ddlyoko
  * 
@@ -52,10 +54,10 @@ public class Farm {
 	private BukkitTask reloadAllThread;
 	// The Farm Thread
 	private BukkitRunnable farmThread;
-	// The particle
-	private Particle particle;
-	// DustOption for REDSTONE
-	private final DustOptions redstoneDustOption = new Particle.DustOptions(Color.RED, 1);
+	// Loading
+	private final DustOptions red = new Particle.DustOptions(Color.RED, 1);
+	// Ok
+	private final DustOptions white = new Particle.DustOptions(Color.WHITE, 1);
 	// The current chunk that is inspected by the reloadAll() method
 	private Chunk currentChunk;
 	private boolean stop;
@@ -80,6 +82,8 @@ public class Farm {
 
 			@Override
 			public void run() {
+				if (stop)
+					cancel();
 				tick++;
 				if (toPlant.size() > 0 && tick % tickTime == 0) {
 					Block b = toPlant.poll();
@@ -91,7 +95,7 @@ public class Farm {
 								toGrow.add(b);
 								b.setType(type.getType());
 								// Particle line from center to this block
-								makeParticleLine(Particle.SPELL, center, b.getLocation(), 1);
+								Util.makeParticleLine(Particle.REDSTONE, center, b.getLocation(), 1, white);
 							}
 						});
 					}
@@ -118,72 +122,23 @@ public class Farm {
 					}
 				}
 				if (tick % 5 == 0) {
-					if (particle == Particle.REDSTONE)
-						center.getWorld().spawnParticle(particle, center, 10, 0, 0, 0, 0, redstoneDustOption);
-					else
-						center.getWorld().spawnParticle(particle, center, 10, 0, 0, 0, 0);
+					center.getWorld().spawnParticle(Particle.REDSTONE, center, 10, 0, 0, 0, 0, white);
 					if (currentChunk != null) {
 						int cX = currentChunk.getX();
 						int cZ = currentChunk.getZ();
-						makeParticleLine(Particle.REDSTONE, center,
-								new Location(center.getWorld(), (cX << 4), 72, (cZ << 4)), 1, redstoneDustOption);
-						makeParticleLine(Particle.REDSTONE, center,
-								new Location(center.getWorld(), (cX << 4), 72, (cZ << 4) + 15), 1, redstoneDustOption);
-						makeParticleLine(Particle.REDSTONE, center,
-								new Location(center.getWorld(), (cX << 4) + 15, 72, (cZ << 4)), 1, redstoneDustOption);
-						makeParticleLine(Particle.REDSTONE, center,
-								new Location(center.getWorld(), (cX << 4) + 15, 72, (cZ << 4) + 15), 1,
-								redstoneDustOption);
+						Util.makeParticleLine(Particle.REDSTONE, center,
+								new Location(center.getWorld(), (cX << 4), 72, (cZ << 4)), 1, red);
+						Util.makeParticleLine(Particle.REDSTONE, center,
+								new Location(center.getWorld(), (cX << 4), 72, (cZ << 4) + 15), 1, red);
+						Util.makeParticleLine(Particle.REDSTONE, center,
+								new Location(center.getWorld(), (cX << 4) + 15, 72, (cZ << 4)), 1, red);
+						Util.makeParticleLine(Particle.REDSTONE, center,
+								new Location(center.getWorld(), (cX << 4) + 15, 72, (cZ << 4) + 15), 1, red);
 					}
 				}
 			}
 		};
 		farmThread.runTaskTimerAsynchronously(me.oddlyoko.farm.Farm.get(), 1, 1);
-	}
-
-	/**
-	 * Show a line of particle between two points with custom space
-	 * 
-	 * @param p
-	 *                  The particle
-	 * @param from
-	 *                  The first location
-	 * @param to
-	 *                  The second location
-	 * @param space
-	 *                  The space
-	 */
-	private void makeParticleLine(Particle p, Location from, Location to, int space) {
-		makeParticleLine(p, from, to, space, null);
-	}
-
-	/**
-	 * Show a line of particle between two points with custom space
-	 * 
-	 * @param p
-	 *                  The particle
-	 * @param from
-	 *                  The first location
-	 * @param to
-	 *                  The second location
-	 * @param space
-	 *                  The space
-	 * @param data
-	 *                  The particle data
-	 */
-	private void makeParticleLine(Particle p, Location from, Location to, int space, Object data) {
-		double x = to.getX() - from.getX();
-		double y = to.getY() - from.getY();
-		double z = to.getZ() - from.getZ();
-		double distance = Math.sqrt(x * x + y * y + z * z);
-		// Normalize (distance to 1)
-		x /= distance;
-		y /= distance;
-		z /= distance;
-		for (int i = 0; i < distance; i += space)
-			from.getWorld().spawnParticle(p, from.getX() + x * i, from.getY() + y * i, from.getZ() + z * i, 10, 0, 0, 0,
-					0, data);
-		from.getWorld().spawnParticle(p, to, 10, 0, 0, 0, 0, data);
 	}
 
 	/**
@@ -193,7 +148,6 @@ public class Farm {
 	 * @see Type#is(Material)
 	 */
 	public void reloadAll() {
-		particle = Particle.REDSTONE;
 		reloadAllThread = Bukkit.getScheduler().runTaskAsynchronously(me.oddlyoko.farm.Farm.get(), () -> {
 			try {
 				World w = center.getWorld();
@@ -243,7 +197,7 @@ public class Farm {
 						});
 						latch.await();
 						ChunkSnapshot c = currentChunk.getChunkSnapshot();
-						System.out.println("Chunk at x = " + cX + ", z = " + cZ);
+						// System.out.println("Chunk at x = " + cX + ", z = " + cZ);
 						for (int x = 0; x <= 15; x++) {
 							realX = (cX << 4) + x;
 							distX = (realX - centerX) * (realX - centerX);
@@ -260,13 +214,14 @@ public class Farm {
 									if (distXZ + distY <= radiusSquare) {
 										// Test if block is SOIL
 										if (c.getBlockType(x, y, z) == Material.FARMLAND) {
+
 											// Test if it's air or the material that will grow
 											m = c.getBlockType(x, y + 1, z);
 											if (m == Material.AIR) {
 												add(currentChunk.getBlock(x, y + 1, z));
 												// This block isn't SOIL so skip this one
 												y++;
-											} else if (type.is(m)) {
+											} else if (Type.is(m)) {
 												// Testing if it's grown
 												BlockData bd = c.getBlockData(x, y + 1, z);
 												if (bd instanceof Ageable) {
@@ -288,7 +243,6 @@ public class Farm {
 			} catch (Exception ex) {
 				Bukkit.getLogger().log(Level.SEVERE, "An error has occured while retrieving all block", ex);
 			} finally {
-				particle = Particle.SPELL;
 				currentChunk = null;
 			}
 		});
@@ -305,16 +259,9 @@ public class Farm {
 	 */
 	public void stop() {
 		stop = true;
-		if (reloadAllThread != null && Bukkit.getScheduler().isCurrentlyRunning(reloadAllThread.getTaskId())) {
-			System.out.println("Cancelling reloadAllThread");
+		if (reloadAllThread != null && Bukkit.getScheduler().isCurrentlyRunning(reloadAllThread.getTaskId()))
 			reloadAllThread.cancel();
-		}
 		reloadAllThread = null;
-		if (farmThread != null) {
-			System.out.println("Cancelling farmThread");
-			farmThread.cancel();
-		}
-		farmThread = null;
 	}
 
 	public boolean isInside(Location loc) {
@@ -370,7 +317,7 @@ public class Farm {
 		 *              The material to check
 		 * @return true if material is one of the type listed before
 		 */
-		public boolean is(Material m) {
+		public static boolean is(Material m) {
 			return m == Material.POTATOES || m == Material.CARROTS || m == Material.WHEAT || m == Material.BEETROOTS;
 		}
 	}

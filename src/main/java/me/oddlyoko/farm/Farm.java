@@ -6,6 +6,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import me.oddlyoko.farm.farm.FarmManager;
+import me.oddlyoko.farm.tree.TreeManager;
 
 /**
  * Farm Copyright (C) 2019 0ddlyoko
@@ -29,6 +30,7 @@ public class Farm extends JavaPlugin {
 	private static Farm farm;
 	private FarmCommand farmCommand;
 	private FarmManager farmManager;
+	private TreeManager treeManager;
 
 	public Farm() {
 		farm = this;
@@ -37,6 +39,7 @@ public class Farm extends JavaPlugin {
 	@Override
 	public void onEnable() {
 		farmManager = new FarmManager();
+		treeManager = new TreeManager();
 		Bukkit.getPluginCommand("farm").setExecutor(farmCommand = new FarmCommand());
 		Bukkit.getLogger().log(Level.INFO, "Plugin loaded");
 	}
@@ -48,6 +51,10 @@ public class Farm extends JavaPlugin {
 
 	public FarmManager getFarmManager() {
 		return farmManager;
+	}
+
+	public TreeManager getTreeManager() {
+		return treeManager;
 	}
 
 	public static Farm get() {

@@ -66,10 +66,9 @@ public class FarmManager implements Listener {
 		List<String> keys = config.getKeys("farms");
 		for (String key : keys) {
 			String k = "farms." + key;
-			String strType = config.getString(k + ".type");
-			String strRadius = config.getString(k + ".radius");
 			Location center = config.getLocation(k + ".center");
-			String strTime = config.getString(k + ".time");
+			int radius = config.getInt(k + ".radius");
+			String strType = config.getString(k + ".type");
 			Farm.Type type = Type.CARROTS;
 			try {
 				type = Farm.Type.valueOf(strType);
@@ -77,14 +76,7 @@ public class FarmManager implements Listener {
 				Bukkit.getLogger().log(Level.WARNING, "Unknown Farm.Type " + strType + ", using default one (CARROTS)",
 						ex);
 			}
-			int radius = 0;
-			int time = 0;
-			try {
-				radius = Integer.parseInt(strRadius);
-				time = Integer.parseInt(strTime);
-			} catch (NumberFormatException ex) {
-				Bukkit.getLogger().log(Level.SEVERE, "Invalid radius / time for type = " + strType, ex);
-			}
+			int time = config.getInt(k + ".time");
 			farms.add(new Farm(center, radius, type, time));
 		}
 	}
@@ -109,15 +101,27 @@ public class FarmManager implements Listener {
 			// Copy the old list to prevent modification errors
 			for (Farm v : new ArrayList<>(farms)) {
 				String k = "farms." + i;
-				config.set(k + ".type", v.getType().name());
-				config.set(k + ".radius", v.getRadius());
 				config.set(k + ".center", v.getCenter());
+				config.set(k + ".radius", v.getRadius());
+				config.set(k + ".type", v.getType().name());
 				config.set(k + ".time", v.getTickTime());
 
 				i++;
 			}
 			Bukkit.getLogger().info("Farms saved");
 		});
+	}
+
+	public Farm getNearbyFarm(Location loc) {
+		double dist = -1;
+		Farm f = null;
+		for (Farm farm : farms) {
+			if (farm.isInside(loc) && (f == null || farm.getCenter().distance(loc) < dist)) {
+				f = farm;
+				dist = farm.getCenter().distance(loc);
+			}
+		}
+		return f;
 	}
 
 	public Farm getFarm(Location loc) {
@@ -152,12 +156,18 @@ public class FarmManager implements Listener {
 	public void onBlockDestroy(BlockBreakEvent e) {
 		if (e.isCancelled())
 			return;
+
 		Block b = e.getBlock();
+		if (b == null)
+			return;
+
+		if (!Farm.Type.is(b.getType()))
+			return;
 
 		Farm f = getFarm(new Location(b.getWorld(), b.getX(), b.getY() - 1, b.getZ()));
-
-		if (f == null || b == null)
+		if (f == null)
 			return;
+
 		long lastUpdate = System.currentTimeMillis();
 		if (b.getMetadata("last_update").size() != 0)
 			lastUpdate = b.getMetadata("last_update").get(0).asLong();
@@ -168,12 +178,11 @@ public class FarmManager implements Listener {
 		System.out.println("Adding block to list");
 		f.add(b);
 		if (vals.size() > 0 && vals.get(0).asInt() >= 4) {
-			if ((System.currentTimeMillis() - lastUpdate) / 1000 < 6) {
+			if ((System.currentTimeMillis() - lastUpdate) / 1000 < 6)
 				// To many destroid
 				b.setType(Material.AIR);
-			} else {
+			else
 				b.setMetadata("attempt", new FixedMetadataValue(me.oddlyoko.farm.Farm.get(), 0));
-			}
 		}
 	}
 }

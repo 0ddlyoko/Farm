@@ -13,6 +13,9 @@ permissions:
   farm.remove:
     default: op
     description: Remove an existing farm
+  farm.tree:
+    default: op
+    description: Add / Remove a tree from the list
   farm.reload:
     default: op
     description: Reload all farms
