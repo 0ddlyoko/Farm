@@ -26,14 +26,6 @@
 		</developer>
 	</developers>
 
-	<!-- Configuration of repositories -->
-	<repositories>
-		<repository>
-			<id>spigot-repo</id>
-			<url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
-		</repository>
-	</repositories>
-
 	<build>
 		<defaultGoal>clean install</defaultGoal>
 		<finalName>Farm-${project.version}</finalName>
@@ -83,12 +75,33 @@
 		</plugins>
 	</build>
 
+	<!-- Configuration of repositories -->
+	<repositories>
+		<repository>
+			<id>papermc</id>
+			<url>https://papermc.io/repo/repository/maven-public/</url>
+		</repository>
+
+		<repository>
+			<id>sk89q-repo</id>
+			<url>https://maven.enginehub.org/repo/</url>
+		</repository>
+	</repositories>
+
 	<dependencies>
-		<!--Spigot API -->
+		<!-- Paper API -->
 		<dependency>
-			<groupId>org.spigotmc</groupId>
-			<artifactId>spigot-api</artifactId>
-			<version>1.12.2-R0.1-SNAPSHOT</version>
+			<groupId>com.destroystokyo.paper</groupId>
+			<artifactId>paper-api</artifactId>
+			<version>1.13.2-R0.1-SNAPSHOT</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- WorldGuard -->
+		<dependency>
+			<groupId>com.sk89q.worldguard</groupId>
+			<artifactId>worldguard-bukkit</artifactId>
+			<version>7.0.0</version>
 			<scope>provided</scope>
 		</dependency>
 	</dependencies>

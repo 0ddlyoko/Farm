@@ -1,0 +1,4 @@
+# The world region for mining
+mine_world_region: world
+# The region for mining. Use __global__ or an invalid region to disable it
+mine_region: __global__
