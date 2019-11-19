@@ -1,9 +1,6 @@
-/**
- * 
- */
-package me.oddlyoko.farm.config;
+package me.oddlyoko.farm.mine;
 
-import java.io.File;
+import org.bukkit.block.Block;
 
 /**
  * Farm Copyright (C) 2019 0ddlyoko
@@ -23,22 +20,25 @@ import java.io.File;
  *
  * @author 0ddlyoko
  */
-public class ConfigManager {
-	private Config config;
-	private String mineWorldName;
-	private String mineRegion;
+public class MineBlock {
+	private Block block;
+	private int timeRemaining;
 
-	public ConfigManager() {
-		config = new Config(new File("plugins" + File.separator + "Farm" + File.separator + "config.yml"));
-		mineWorldName = config.getString("mine_world_region");
-		mineRegion = config.getString("mine_region");
+	public MineBlock(Block block, int timeRemaining) {
+		this.block = block;
+		this.timeRemaining = timeRemaining;
 	}
 
-	public String getMineWorldName() {
-		return mineWorldName;
+	public Block getBlock() {
+		return block;
 	}
 
-	public String getMineRegion() {
-		return mineRegion;
+	public int getTimeRemaining() {
+		return timeRemaining;
+	}
+
+	public boolean tick() {
+		timeRemaining--;
+		return timeRemaining <= 0;
 	}
 }

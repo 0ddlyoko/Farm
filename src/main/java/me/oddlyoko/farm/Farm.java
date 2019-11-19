@@ -5,7 +5,9 @@ import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import me.oddlyoko.farm.config.ConfigManager;
 import me.oddlyoko.farm.farm.FarmManager;
+import me.oddlyoko.farm.mine.MineManager;
 import me.oddlyoko.farm.tree.TreeManager;
 
 /**
@@ -28,9 +30,11 @@ import me.oddlyoko.farm.tree.TreeManager;
  */
 public class Farm extends JavaPlugin {
 	private static Farm farm;
-	private FarmCommand farmCommand;
+	private ConfigManager configManager;
 	private FarmManager farmManager;
 	private TreeManager treeManager;
+	private MineManager mineManager;
+	private FarmCommand farmCommand;
 
 	public Farm() {
 		farm = this;
@@ -38,8 +42,11 @@ public class Farm extends JavaPlugin {
 
 	@Override
 	public void onEnable() {
+		saveDefaultConfig();
+		configManager = new ConfigManager();
 		farmManager = new FarmManager();
 		treeManager = new TreeManager();
+		mineManager = new MineManager(configManager.getMineWorldName(), configManager.getMineRegion());
 		Bukkit.getPluginCommand("farm").setExecutor(farmCommand = new FarmCommand());
 		Bukkit.getLogger().log(Level.INFO, "Plugin loaded");
 	}
@@ -49,12 +56,20 @@ public class Farm extends JavaPlugin {
 		Bukkit.getLogger().log(Level.INFO, "Plugin unloaded");
 	}
 
+	public ConfigManager getConfigManager() {
+		return configManager;
+	}
+
 	public FarmManager getFarmManager() {
 		return farmManager;
 	}
 
 	public TreeManager getTreeManager() {
 		return treeManager;
+	}
+
+	public MineManager getMineManager() {
+		return mineManager;
 	}
 
 	public static Farm get() {

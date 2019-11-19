@@ -2,6 +2,7 @@ name: Farm
 main: me.oddlyoko.farm.Farm
 version: 0.1
 author: 0ddlyoko
+depend: [WorldGuard, WorldEdit]
 api-version: 1.13
 commands:
   farm:
@@ -15,7 +16,7 @@ permissions:
     description: Remove an existing farm
   farm.tree:
     default: op
-    description: Add / Remove a tree from the list
+    description: Switch in tree mode
   farm.reload:
     default: op
     description: Reload all farms

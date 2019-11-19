@@ -54,7 +54,7 @@ public class Tree {
 
 	// A LinkedList of plants to replant
 	private LinkedList<TreeReplant> toPlant;
-	// The file that contain all log
+	// The file that contains all log
 	private File logFile;
 	// An HashMap containing all LOG
 	private HashMap<Location, TreeReplant> logs;
@@ -269,7 +269,6 @@ public class Tree {
 			axis = ((Orientable) b.getBlockData()).getAxis();
 		logs.put(b.getLocation(), new TreeReplant(b.getLocation(), b.getType(), axis));
 		playerTreeMode.playSound(playerTreeMode.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.4f, 1.7f);
-		System.out.println("Adding ...");
 		if (!showTreeMode)
 			b.setType(Material.AIR);
 	}
@@ -279,7 +278,6 @@ public class Tree {
 			return;
 		TreeReplant tr = logs.remove(loc);
 		playerTreeMode.playSound(playerTreeMode.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.4f, 1.7f);
-		System.out.println("Removing ...");
 		if (showTreeMode && tr != null)
 			grow(tr);
 	}

@@ -48,7 +48,7 @@ public class Farm {
 
 	// A LinkedList of plants to replant
 	private LinkedList<Block> toPlant;
-	// An HashMap containing plants that is growing
+	// An ArrayList containing plants that is growing
 	private ArrayList<Block> toGrow;
 	// Thread to reload
 	private BukkitTask reloadAllThread;
@@ -206,7 +206,7 @@ public class Farm {
 								distZ = (realZ - centerZ) * (realZ - centerZ);
 								distXZ = distX + distZ;
 								// The minimum y is maximum between 0 and centerY - (radius / 2)
-								// The maximum y is minimum between 254, centerY + (radius / 2) and highestBlock
+								// The maximum y is minimum between 255, centerY + (radius / 2) and highestBlock
 								for (int y = Math.max(0, centerY - (radius / 2)); y <= Math.min(centerY + (radius / 2),
 										Math.min(255, c.getHighestBlockYAt(x, z))); y++) {
 									distY = (y - centerY) * (y - centerY);
@@ -226,9 +226,8 @@ public class Farm {
 												BlockData bd = c.getBlockData(x, y + 1, z);
 												if (bd instanceof Ageable) {
 													Ageable age = (Ageable) bd;
-													if (age.getAge() != age.getMaximumAge()) {
+													if (age.getAge() != age.getMaximumAge())
 														toGrow.add(currentChunk.getBlock(x, y + 1, z));
-													}
 												}
 												// This block isn't SOIL so skip this one
 												y++;
