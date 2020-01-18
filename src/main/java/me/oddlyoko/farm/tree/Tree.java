@@ -68,7 +68,7 @@ public class Tree {
 	private final DustOptions purple = new Particle.DustOptions(Color.PURPLE, 1);
 	// The player that is using tree mode
 	private Player playerTreeMode;
-	// If false,
+	// If false, hide logs that are registered
 	private boolean showTreeMode;
 	private boolean stop;
 
@@ -129,7 +129,7 @@ public class Tree {
 					while ((line = br.readLine()) != null) {
 						String[] word = space.split(line);
 						if (word.length != 5) {
-							Bukkit.getLogger().log(Level.WARNING, "Cannot parse line " + line + " !");
+							Bukkit.getLogger().warning("Cannot parse line " + line + " !");
 							continue;
 						}
 						int x;
@@ -146,7 +146,7 @@ public class Tree {
 							Location loc = new Location(center.getWorld(), x, y, z);
 							logs.put(loc, new TreeReplant(loc, mat, axis));
 						} catch (Exception ex) {
-							Bukkit.getLogger().log(Level.WARNING, "Cannot parse line " + line + " !");
+							Bukkit.getLogger().warning("Cannot parse line " + line + " !");
 							continue;
 						}
 					}
@@ -250,6 +250,9 @@ public class Tree {
 	public void stopTreeMode() {
 		playerTreeMode = null;
 		showTreeMode = true;
+		for (TreeReplant tr : logs.values())
+			// Show
+			grow(tr);
 		reloadAll();
 	}
 
@@ -287,35 +290,33 @@ public class Tree {
 		case "save":
 			playerTreeMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Saving ...");
 			save(() -> {
-				playerTreeMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Saved ...");
+				playerTreeMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Saved");
 			});
 			return true;
 		case "show":
-			Bukkit.getScheduler().runTask(Farm.get(), () -> {
-				if (showTreeMode) {
-					playerTreeMode.sendMessage(__.PREFIX + ChatColor.RED + "Already on");
-					return;
-				}
-				showTreeMode = true;
-				for (TreeReplant tr : logs.values())
-					// Show
-					grow(tr);
-				playerTreeMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Switched on");
-			});
+			if (showTreeMode)
+				playerTreeMode.sendMessage(__.PREFIX + ChatColor.RED + "Already on");
+			else
+				Bukkit.getScheduler().runTask(Farm.get(), () -> {
+					showTreeMode = true;
+					for (TreeReplant tr : logs.values())
+						// Show
+						grow(tr);
+					playerTreeMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Switched on");
+				});
 			return true;
 		case "hide":
-			Bukkit.getScheduler().runTask(Farm.get(), () -> {
-				if (!showTreeMode) {
-					playerTreeMode.sendMessage(__.PREFIX + ChatColor.RED + "Already off");
-					return;
-				}
-				showTreeMode = false;
-				for (TreeReplant tr : logs.values()) {
-					// Hide
-					center.getWorld().getBlockAt(tr.getLocation()).setType(Material.AIR);
-				}
-				playerTreeMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Switched off");
-			});
+			if (!showTreeMode)
+				playerTreeMode.sendMessage(__.PREFIX + ChatColor.RED + "Already off");
+			else
+				Bukkit.getScheduler().runTask(Farm.get(), () -> {
+					showTreeMode = false;
+					for (TreeReplant tr : logs.values()) {
+						// Hide
+						center.getWorld().getBlockAt(tr.getLocation()).setType(Material.AIR);
+					}
+					playerTreeMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Switched off");
+				});
 			return true;
 		}
 		return false;

@@ -7,16 +7,22 @@ import java.util.List;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.util.FileUtil;
 
 import me.oddlyoko.farm.Farm;
+import me.oddlyoko.farm.__;
 import me.oddlyoko.farm.config.Config;
 import me.oddlyoko.farm.mine.Mine.Type;
 
@@ -40,11 +46,15 @@ import me.oddlyoko.farm.mine.Mine.Type;
  */
 public class MineManager implements Listener {
 	private Config config;
+	private World world;
 	private List<Mine> mines;
+	private Player playerMineMode;
+	private Mine mineMineMode;
 
-	public MineManager(String worldName, String regionName) {
+	public MineManager() {
 		config = new Config(new File("plugins" + File.separator + "Farm" + File.separator + "mines.yml"));
 		mines = new ArrayList<>();
+		world = Bukkit.getWorld(Farm.get().getConfigManager().getWorld());
 		Bukkit.getPluginManager().registerEvents(this, Farm.get());
 		reload();
 	}
@@ -62,23 +72,16 @@ public class MineManager implements Listener {
 		stop();
 		mines = new ArrayList<>();
 		config.reload();
-		List<String> keys = config.getKeys("mines");
-		for (String key : keys) {
-			String k = "mines." + key;
-			String worldName = config.getString(k + ".worldName");
-			String regionName = config.getString(k + ".regionName");
-			Type type = Type.STONE;
-			try {
-				type = Type.valueOf(config.getString(k + ".type"));
-			} catch (Exception ex) {
-				Bukkit.getLogger().log(Level.SEVERE, "Cannot parse mine type " + config.getString(k + ".type"));
-				continue;
+		for (Mine.Type type : Mine.Type.values()) {
+			String k = "mines." + type.name();
+			int tickTime = 100;
+			int percent = 5;
+			if (config.exist(k)) {
+				tickTime = config.getInt(k + ".tickTime");
+				percent = config.getInt(k + ".percent");
 			}
-			int tickTime = config.getInt(k + ".tickTime");
-			int percent = config.getInt(k + ".percent");
-			mines.add(new Mine(worldName, regionName, type, tickTime, percent));
+			mines.add(new Mine(world, type, tickTime, percent));
 		}
-
 	}
 
 	public void save() {
@@ -92,37 +95,32 @@ public class MineManager implements Listener {
 					try {
 						config.getFile().createNewFile();
 					} catch (IOException ex) {
-						Bukkit.getLogger().log(Level.SEVERE, "Error while creating trees.yml file", ex);
+						Bukkit.getLogger().log(Level.SEVERE, "Error while creating mines.yml file", ex);
 						return;
 					}
 				} else
 					FileUtil.copy(config.getFile(),
 							new File("plugins" + File.separator + "Farm" + File.separator + "mines_old.yml"));
 			}
-			int i = 0;
 			// Copy the old list to prevent modification errors
-			for (Mine m : new ArrayList<>(mines)) {
-				String k = "mines." + i;
-				config.set(k + ".worldName", m.getWorldName());
-				config.set(k + ".regionName", m.getRegionName());
-				config.set(k + ".type", m.getType().name());
+			for (Mine m : mines) {
+				String k = "mines." + m.getType();
 				config.set(k + ".tickTime", m.getTickTime());
 				config.set(k + ".percent", m.getPercent());
-
-				i++;
 			}
 			Bukkit.getLogger().info("Mines saved");
 		});
 	}
 
-	public Mine getInsideMine(Location loc) {
-		for (Mine m : mines)
-			if (m.isBetween(loc))
-				return m;
-		return null;
+	public Mine getMine(Type type) {
+		if (type == null)
+			return null;
+		return mines.get(type.ordinal());
 	}
 
 	public Mine getMine(Location loc) {
+		if (loc.getWorld() != world)
+			return null;
 		for (Mine m : mines)
 			if (m.isInside(loc))
 				return m;
@@ -133,14 +131,15 @@ public class MineManager implements Listener {
 		return mines;
 	}
 
-	public void addMine(String worldName, String regionName, Type type, int tickTime, int percent) {
-		mines.add(new Mine(worldName, regionName, type, tickTime, percent));
+	public void setMine(Type type, int tickTime, int percent) {
+		Mine m = getMine(type);
+		m.setTickTime(tickTime);
+		m.setPercent(percent);
 		save();
 	}
 
-	public void removeMine(Mine mine) {
-		mines.remove(mine);
-		mine.stop();
+	public void clearMine(Mine mine) {
+		mine.clear();
 		save();
 	}
 
@@ -150,23 +149,98 @@ public class MineManager implements Listener {
 		mines = new ArrayList<>();
 	}
 
-	@EventHandler(priority = EventPriority.MONITOR)
-	public void onBlockDestroy(BlockBreakEvent e) {
-		if (e.isCancelled())
+	/**
+	 * Switch in mine mode for specific player<br />
+	 * <ul>
+	 * <li>If p is null, mine mode will be removed from current player</li>
+	 * <li>If another player is in mine mode, nothing will be done</li>
+	 * <li>If same player is in mine mode, the mine mode will be removed</li>
+	 * <li>If nobody is on mine mode, p will be in mine mode</li>
+	 * </ul>
+	 * 
+	 * @param p
+	 *                 The player
+	 * @param Mine
+	 *                 The mine
+	 */
+	public void mineMode(Player p, Mine mine) {
+		if (p == null && playerMineMode == null)
 			return;
+		if (p != null && playerMineMode != null && playerMineMode != p) {
+			// Do not remove
+			p.sendMessage(__.PREFIX + ChatColor.RED + "Cannot switch in mine mode: player " + playerMineMode.getName()
+					+ " is already in mine mode");
+			return;
+		}
+		if (p == null || playerMineMode == p) {
+			// Remove
+			playerMineMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Removing mine mode");
+			playerMineMode = null;
+			mineMineMode.stopMineMode();
+			return;
+		}
+		// Add
+		if (mine == null) {
+			p.sendMessage(__.PREFIX + ChatColor.RED + "No mine found");
+			return;
+		}
+		p.sendMessage(
+				__.PREFIX + ChatColor.GREEN + "Switched to mine mode. By using this mode, the mine will be stopped");
+		p.sendMessage(ChatColor.YELLOW + "Commands:");
+		p.sendMessage(ChatColor.YELLOW + "- save" + ChatColor.GREEN + " : " + ChatColor.YELLOW + "Save & reload");
+		p.sendMessage(ChatColor.YELLOW + "- show" + ChatColor.GREEN + " : " + ChatColor.YELLOW + "Show all logs");
+		p.sendMessage(ChatColor.YELLOW + "- hide" + ChatColor.GREEN + " : " + ChatColor.YELLOW
+				+ "Replace registered stone to sponge");
+		playerMineMode = p;
+		mineMineMode = mine;
+		mine.mineMode(p);
+	}
 
+	@EventHandler
+	public void onPlayerDisconnect(PlayerQuitEvent e) {
+		if (playerMineMode == e.getPlayer())
+			mineMode(null, null);
+	}
+
+	@EventHandler
+	public void onPlayerChat(AsyncPlayerChatEvent e) {
+		if (playerMineMode == e.getPlayer() && mineMineMode.mineModeCmd(e.getMessage()))
+			e.setCancelled(true);
+	}
+
+	@EventHandler(priority = EventPriority.HIGHEST)
+	public void onBlockDestroy(BlockBreakEvent e) {
 		Block b = e.getBlock();
 		if (b == null)
 			return;
+
 		if (b.getType() != Material.STONE && b.getType() != Material.COBBLESTONE && b.getType() != Material.BEDROCK
 				&& b.getType() != Material.COAL_ORE && b.getType() != Material.DIAMOND_ORE
 				&& b.getType() != Material.EMERALD_ORE && b.getType() != Material.GOLD_ORE
 				&& b.getType() != Material.IRON_ORE && b.getType() != Material.LAPIS_ORE
-				&& b.getType() != Material.REDSTONE_ORE && b.getType() != Material.NETHER_QUARTZ_ORE)
+				&& b.getType() != Material.REDSTONE_ORE && b.getType() != Material.NETHER_QUARTZ_ORE
+				&& b.getType() != Material.SPONGE)
 			return;
+
+		if (e.getPlayer() == playerMineMode) {
+			// Mine mode
+			if (mineMineMode.isInside(b.getLocation()))
+				// Remove it
+				mineMineMode.removeBlockMineMode(b);
+			else
+				// Add it
+				mineMineMode.addBlockMineMode(b);
+			e.setCancelled(true);
+			return;
+		}
+		if (b.getType() == Material.SPONGE)
+			return;
+
 		Mine m = getMine(b.getLocation());
 		if (m == null)
 			return;
+		// Don't cancel for drop
+		e.setCancelled(false);
 		m.mine(b);
 	}
 }

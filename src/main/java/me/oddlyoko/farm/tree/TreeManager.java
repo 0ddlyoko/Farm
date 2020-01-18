@@ -207,17 +207,13 @@ public class TreeManager implements Listener {
 
 	@EventHandler
 	public void onPlayerChat(AsyncPlayerChatEvent e) {
-		Player p = e.getPlayer();
-		if (playerTreeMode == p)
+		if (playerTreeMode == e.getPlayer())
 			if (treeTreeMode.treeModeCmd(e.getMessage()))
 				e.setCancelled(true);
 	}
 
-	@EventHandler(priority = EventPriority.MONITOR)
+	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onBlockDestroy(BlockBreakEvent e) {
-		if (e.isCancelled())
-			return;
-
 		Block b = e.getBlock();
 		if (b == null)
 			return;
@@ -253,7 +249,6 @@ public class TreeManager implements Listener {
 		Axis direction = Axis.Y;
 		if (b.getBlockData() instanceof Orientable)
 			direction = ((Orientable) b.getBlockData()).getAxis();
-		System.out.println("Adding block to list");
 		t.add(b.getLocation(), b.getType(), direction);
 		if (vals.size() > 0 && vals.get(0).asInt() >= 4) {
 			if ((System.currentTimeMillis() - lastUpdate) / 1000 < 6)
@@ -262,5 +257,7 @@ public class TreeManager implements Listener {
 			else
 				b.setMetadata("attempt", new FixedMetadataValue(Farm.get(), 0));
 		}
+		// Don't cancel for drop
+		e.setCancelled(false);
 	}
 }

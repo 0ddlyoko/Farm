@@ -1,28 +1,31 @@
 package me.oddlyoko.farm.mine;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
+import java.util.regex.Pattern;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
-import org.bukkit.ChunkSnapshot;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
-import com.sk89q.worldedit.bukkit.BukkitWorld;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldguard.WorldGuard;
-import com.sk89q.worldguard.protection.managers.RegionManager;
-import com.sk89q.worldguard.protection.regions.ProtectedRegion;
-import com.sk89q.worldguard.protection.regions.RegionContainer;
-
 import me.oddlyoko.farm.Farm;
+import me.oddlyoko.farm.__;
 
 /**
  * Farm Copyright (C) 2019 0ddlyoko
@@ -43,8 +46,7 @@ import me.oddlyoko.farm.Farm;
  * @author 0ddlyoko
  */
 public class Mine {
-	private String worldName;
-	private String regionName;
+	private World world;
 	private Type type;
 	private int tickTime;
 	private int percent;
@@ -55,31 +57,29 @@ public class Mine {
 	private int maxNbrSpecialBlocks;
 	// An HashMap containing blocks that will be replaced to stone
 	private HashMap<Location, MineBlock> toReplace;
-	// An HashMap containing all stone blocks
-	private HashMap<Location, Block> blocks;
-	// An array of blocks (blocks.values)
-	private Block[] arrBlocks;
+	// The file that contains all stone
+	private File mineFile;
+	// An array containing all blocks
+	private List<Block> blocks;
 	// Thread to reload
 	private BukkitTask reloadAllThread;
 	// The Mine Thread
 	private BukkitRunnable mineThread;
-	// The current chunk that is inspected by the reload() method
-	private Chunk currentChunk;
-	// The min Vector3
-	private BlockVector3 min;
-	// The max Vector3
-	private BlockVector3 max;
+	// The player that is using mine mode
+	private Player playerMineMode;
+	// If false, hide blocks that are registered
+	private boolean showMineMode;
 	private boolean stop;
 
-	public Mine(String worldName, String regionName, Type type, int tickTime, int percent) {
-		this.worldName = worldName;
-		this.regionName = regionName;
+	public Mine(World world, Type type, int tickTime, int percent) {
+		this.world = world;
 		this.type = type;
 		this.tickTime = tickTime;
 		this.percent = percent;
+		mineFile = new File(
+				"plugins" + File.separator + "Farm" + File.separator + "mine" + File.separator + "mine_" + type);
 		stop = false;
 		toReplace = new HashMap<>();
-		blocks = new HashMap<>();
 		reloadAll();
 		initRunnable();
 	}
@@ -89,6 +89,8 @@ public class Mine {
 
 			@Override
 			public void run() {
+				if (stop || playerMineMode != null)
+					return;
 				if (toReplace.size() > 0) {
 					synchronized (toReplace) {
 						// Iterate over all blocks
@@ -105,9 +107,9 @@ public class Mine {
 						}
 					}
 				}
-				if (arrBlocks != null && nbrSpecialBlocks <= maxNbrSpecialBlocks) {
+				if (blocks != null && blocks.size() != 0 && nbrSpecialBlocks < maxNbrSpecialBlocks) {
 					// Add one special block
-					final Block b = arrBlocks[(int) (Math.random() * arrBlocks.length)];
+					final Block b = blocks.get((int) (Math.random() * blocks.size()));
 					synchronized (toReplace) {
 						if (!toReplace.containsKey(b.getLocation()) && b.getType() == Material.STONE) {
 							Bukkit.getScheduler().runTask(Farm.get(), () -> {
@@ -122,87 +124,103 @@ public class Mine {
 		mineThread.runTaskTimerAsynchronously(Farm.get(), 1, 1);
 	}
 
+	private Pattern space = Pattern.compile(" ");
+
 	private void reloadAll() {
 		reloadAllThread = Bukkit.getScheduler().runTaskAsynchronously(Farm.get(), () -> {
 			try {
-				RegionContainer rc = WorldGuard.getInstance().getPlatform().getRegionContainer();
-				World w = Bukkit.getWorld(worldName);
-				if (w == null) {
-					Bukkit.getLogger().log(Level.SEVERE, "World " + worldName + " not found");
-					return;
+				stop = true;
+				if (!mineFile.exists()) {
+					mineFile.getParentFile().mkdirs();
+					try {
+						mineFile.createNewFile();
+					} catch (IOException ex) {
+						Bukkit.getLogger().log(Level.SEVERE, "Error while creating " + mineFile.getName() + " file",
+								ex);
+						return;
+					}
 				}
-				RegionManager rm = rc.get(new BukkitWorld(w));
-				if (rm == null) {
-					Bukkit.getLogger().log(Level.SEVERE, "Cannot get RegionManager for world " + worldName);
-					return;
-				}
-				if ("__global__".equalsIgnoreCase(regionName)) {
-					Bukkit.getLogger().log(Level.SEVERE,
-							"Cannot use __global__ as region for mine. Please choose another region");
-					return;
-				}
-				ProtectedRegion region = rm.getRegion(regionName);
-				if (region == null) {
-					Bukkit.getLogger().log(Level.SEVERE, "Region " + regionName + " not found");
-					return;
-				}
-				min = region.getMinimumPoint();
-				max = region.getMaximumPoint();
-				// Two chunks at the opposite side
-				int chunkX = min.getBlockX() >> 4;
-				int chunkZ = min.getBlockZ() >> 4;
-				int endChunkX = max.getBlockX() >> 4;
-				int endChunkZ = max.getBlockZ() >> 4;
-				// Variables
-				Material m;
-				HashMap<Location, Block> blocks = new HashMap<>();
-				// We'll loop for each chunk
-				for (int cX = chunkX; cX <= endChunkX && !stop; cX++) {
-					for (int cZ = chunkZ; cZ <= endChunkZ && !stop; cZ++) {
-						// Load in sync and wait for it
-						// Waawwww Java, I love it <3
-						final int copyX = cX;
-						final int copyZ = cZ;
-						// Used to wait
-						CountDownLatch latch = new CountDownLatch(1);
-						Bukkit.getScheduler().runTask(Farm.get(), () -> {
-							// Here we make a copy of the chunk to use it in sync
-							currentChunk = w.getChunkAt(copyX, copyZ);
-							currentChunk.load();
-							latch.countDown();
-						});
-						latch.await();
-						ChunkSnapshot c = currentChunk.getChunkSnapshot();
-						for (int x = 0; x <= 15; x++) {
-							for (int z = 0; z <= 15; z++) {
-								// The minimum y is maximum between 0 and min.getY()
-								// The maximum y is minimum between 255, max.getY() and highestBlock
-								for (int y = Math.max(0, min.getBlockY()); y <= Math.min(max.getBlockY(),
-										Math.min(255, c.getHighestBlockYAt(x, z))); y++) {
-									m = c.getBlockType(x, y, z);
-									if (m == Material.STONE || m == Material.COBBLESTONE || m == Material.BEDROCK
-											|| m == Material.COAL_ORE || m == Material.DIAMOND_ORE
-											|| m == Material.EMERALD_ORE || m == Material.GOLD_ORE
-											|| m == Material.IRON_ORE || m == Material.LAPIS_ORE
-											|| m == Material.REDSTONE_ORE || m == Material.NETHER_QUARTZ_ORE) {
-										Block b = currentChunk.getBlock(x, y, z);
-										blocks.put(b.getLocation(), b);
-										if (m != Material.STONE)
-											synchronized (toReplace) {
-												toReplace.put(b.getLocation(), new MineBlock(b, 1));
-											}
-									}
-								}
-							}
+				List<Location> locs = new ArrayList<>();
+				// Load all blocks
+				try (BufferedReader br = new BufferedReader(new FileReader(mineFile))) {
+					String line;
+					while ((line = br.readLine()) != null) {
+						String[] word = space.split(line);
+						if (word.length != 3) {
+							Bukkit.getLogger().warning("Cannot parse line " + line + " !");
+							continue;
+						}
+						int x;
+						int y;
+						int z;
+						try {
+							x = Integer.parseInt(word[0]);
+							y = Integer.parseInt(word[1]);
+							z = Integer.parseInt(word[2]);
+							Location loc = new Location(world, x, y, z);
+							locs.add(loc);
+						} catch (Exception ex) {
+							Bukkit.getLogger().warning("Cannot parse line " + line + " !");
+							continue;
 						}
 					}
 				}
-				this.blocks = blocks;
-				this.arrBlocks = blocks.values().toArray(new Block[0]);
 				this.nbrSpecialBlocks = 0;
-				this.maxNbrSpecialBlocks = blocks.size() * percent / 100;
+				this.maxNbrSpecialBlocks = locs.size() * percent / 100;
+				this.blocks = new ArrayList<>(locs.size());
+				// Used to wait
+				CountDownLatch latch = new CountDownLatch(1);
+				// At start, put every block to their original place
+				Bukkit.getScheduler().runTask(Farm.get(), () -> {
+					try {
+						for (Location l : locs) {
+							Block b = world.getBlockAt(l);
+							b.setType(Material.STONE);
+							blocks.add(b);
+						}
+					} finally {
+						latch.countDown();
+					}
+				});
+				latch.await();
 			} catch (Exception ex) {
 				Bukkit.getLogger().log(Level.SEVERE, "An error has occured while retrieving all block", ex);
+			} finally {
+				synchronized (toReplace) {
+					toReplace = new HashMap<>();
+				}
+				stop = false;
+			}
+		});
+	}
+
+	public void save(Runnable then) {
+		Bukkit.getScheduler().runTaskAsynchronously(Farm.get(), () -> {
+			try {
+				if (!mineFile.exists()) {
+					mineFile.getParentFile().mkdirs();
+					try {
+						mineFile.createNewFile();
+					} catch (IOException ex) {
+						Bukkit.getLogger().log(Level.SEVERE, "Error while creating " + mineFile.getName() + " file",
+								ex);
+						return;
+					}
+				}
+				// Save all blocks
+				StringBuilder sb = new StringBuilder();
+				for (Block b : blocks) {
+					sb.append(b.getLocation().getBlockX()).append(" ");
+					sb.append(b.getLocation().getBlockY()).append(" ");
+					sb.append(b.getLocation().getBlockZ()).append('\n');
+				}
+				try (FileWriter fw = new FileWriter(mineFile)) {
+					fw.write(sb.toString());
+					fw.flush();
+				}
+				then.run();
+			} catch (Exception ex) {
+				Bukkit.getLogger().log(Level.SEVERE, "An error has occured while saving mines", ex);
 			}
 		});
 	}
@@ -210,7 +228,6 @@ public class Mine {
 	public void mine(Block b) {
 		switch (b.getType()) {
 		case STONE:
-
 			Bukkit.getScheduler().runTask(Farm.get(), () -> {
 				b.setType(Material.COBBLESTONE);
 			});
@@ -241,6 +258,105 @@ public class Mine {
 		}
 	}
 
+	/**
+	 * Start mine mode for player p
+	 * 
+	 * @param p
+	 *              The player
+	 */
+	public void mineMode(Player p) {
+		playerMineMode = p;
+		showMineMode = true;
+		synchronized (toReplace) {
+			for (MineBlock mb : toReplace.values())
+				mb.getBlock().setType(Material.STONE);
+			toReplace.clear();
+			nbrSpecialBlocks = 0;
+		}
+	}
+
+	/**
+	 * Stop mine mode and reload all
+	 */
+	public void stopMineMode() {
+		showMineMode = true;
+		for (Block b : blocks)
+			// Show
+			b.setType(Material.STONE);
+		playerMineMode = null;
+		reloadAll();
+	}
+
+	/**
+	 * Add a block
+	 */
+	public void addBlockMineMode(Block b) {
+		if (playerMineMode == null)
+			return;
+		if (b.getType() != Material.STONE && b.getType() != Material.COBBLESTONE && b.getType() != Material.BEDROCK
+				&& b.getType() != Material.COAL_ORE && b.getType() != Material.DIAMOND_ORE
+				&& b.getType() != Material.EMERALD_ORE && b.getType() != Material.GOLD_ORE
+				&& b.getType() != Material.IRON_ORE && b.getType() != Material.LAPIS_ORE
+				&& b.getType() != Material.REDSTONE_ORE && b.getType() != Material.NETHER_QUARTZ_ORE
+				&& b.getType() != Material.SPONGE)
+			return;
+		blocks.add(b);
+		playerMineMode.playSound(playerMineMode.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.4f, 1.7f);
+		if (!showMineMode)
+			b.setType(Material.SPONGE);
+	}
+
+	public void removeBlockMineMode(Block block) {
+		if (playerMineMode == null || block == null)
+			return;
+		blocks.remove(block);
+		block.setType(Material.STONE);
+	}
+
+	public boolean mineModeCmd(String cmd) {
+		switch (cmd) {
+		case "save":
+			playerMineMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Saving ...");
+			save(() -> {
+				playerMineMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Saved");
+			});
+			return true;
+		case "show":
+			if (showMineMode)
+				playerMineMode.sendMessage(__.PREFIX + ChatColor.RED + "Already on");
+			else
+				Bukkit.getScheduler().runTask(Farm.get(), () -> {
+					showMineMode = true;
+					for (Block b : blocks)
+						// Show
+						b.setType(Material.STONE);
+				});
+			return true;
+		case "hide":
+			if (!showMineMode)
+				playerMineMode.sendMessage(__.PREFIX + ChatColor.RED + "Already off");
+			else
+				Bukkit.getScheduler().runTask(Farm.get(), () -> {
+					showMineMode = false;
+					for (Block b : blocks)
+						// Hide
+						b.setType(Material.SPONGE);
+					playerMineMode.sendMessage(__.PREFIX + ChatColor.GREEN + "Switched off");
+				});
+			return true;
+		}
+		return false;
+	}
+
+	public void clear() {
+		blocks = new ArrayList<>();
+		nbrSpecialBlocks = 0;
+		maxNbrSpecialBlocks = 0;
+		tickTime = 100;
+		percent = 5;
+		mineFile.delete();
+	}
+
 	public void stop() {
 		stop = true;
 		if (reloadAllThread != null && Bukkit.getScheduler().isCurrentlyRunning(reloadAllThread.getTaskId()))
@@ -251,22 +367,20 @@ public class Mine {
 		mineThread = null;
 	}
 
+	/**
+	 * Check if specific location is a block for that mine.<br />
+	 * !!!! This method doesn't check the world
+	 * 
+	 * @param loc
+	 *                The Location
+	 * @return true if location match
+	 */
 	public boolean isInside(Location loc) {
-		return blocks.containsKey(loc);
-	}
-
-	public boolean isBetween(Location loc) {
-		return loc.getWorld().getName().equalsIgnoreCase(worldName) && loc.getX() >= min.getBlockX()
-				&& loc.getX() <= max.getBlockX() && loc.getY() >= min.getBlockY() && loc.getY() <= max.getBlockY()
-				&& loc.getZ() >= min.getBlockZ() && loc.getZ() <= max.getBlockZ();
-	}
-
-	public String getWorldName() {
-		return worldName;
-	}
-
-	public String getRegionName() {
-		return regionName;
+		for (Block b : blocks)
+			if (b.getLocation().getBlockX() == loc.getBlockX() && b.getLocation().getBlockY() == loc.getBlockY()
+					&& b.getLocation().getBlockZ() == loc.getBlockZ())
+				return true;
+		return false;
 	}
 
 	public Type getType() {
@@ -277,8 +391,16 @@ public class Mine {
 		return tickTime;
 	}
 
+	public void setTickTime(int tickTime) {
+		this.tickTime = tickTime;
+	}
+
 	public int getPercent() {
 		return percent;
+	}
+
+	public void setPercent(int percent) {
+		this.percent = percent;
 	}
 
 	public enum Type {

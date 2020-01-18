@@ -154,9 +154,6 @@ public class FarmManager implements Listener {
 
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onBlockDestroy(BlockBreakEvent e) {
-		if (e.isCancelled())
-			return;
-
 		Block b = e.getBlock();
 		if (b == null)
 			return;
@@ -175,7 +172,6 @@ public class FarmManager implements Listener {
 		List<MetadataValue> vals = b.getMetadata("attempt");
 		b.setMetadata("attempt",
 				new FixedMetadataValue(me.oddlyoko.farm.Farm.get(), (vals.size() > 0) ? vals.get(0).asInt() + 1 : 1));
-		System.out.println("Adding block to list");
 		f.add(b);
 		if (vals.size() > 0 && vals.get(0).asInt() >= 4) {
 			if ((System.currentTimeMillis() - lastUpdate) / 1000 < 6)
@@ -184,5 +180,7 @@ public class FarmManager implements Listener {
 			else
 				b.setMetadata("attempt", new FixedMetadataValue(me.oddlyoko.farm.Farm.get(), 0));
 		}
+		// Don't cancel for drop
+		e.setCancelled(false);
 	}
 }

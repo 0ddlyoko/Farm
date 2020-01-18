@@ -1,6 +1,5 @@
 package me.oddlyoko.farm;
 
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
@@ -46,15 +45,23 @@ public class FarmCommand implements CommandExecutor {
 					sender.sendMessage(ChatColor.AQUA + "- /farm <add|create> tree [time]" + ChatColor.YELLOW
 							+ " : Add a new Tree");
 					sender.sendMessage(ChatColor.AQUA
-							+ "- /farm <add|create> mine <world> <region> [stone|coal|iron|gold|lapis|redstone|nether_quartz|emerald|diamond] [time] [percent]"
+							+ "- /farm <add|create> mine [STONE|COAL|IRON|GOLD|LAPIS|REDSTONE|NETHER_QUARTZ|EMERALD|DIAMOND] [time] [percent]"
 							+ ChatColor.YELLOW + " : Add a new Mine");
 				}
-				if (sender.hasPermission("farm.remove"))
-					sender.sendMessage(ChatColor.AQUA + "- /farm <remove> <farm|tree|mine>" + ChatColor.YELLOW
+				if (sender.hasPermission("farm.remove")) {
+					sender.sendMessage(ChatColor.AQUA + "- /farm remove <farm|tree>" + ChatColor.YELLOW
 							+ " : Remove a Farm / a Tree");
+					sender.sendMessage(ChatColor.AQUA
+							+ "- /farm remove mine <STONE|COAL|IRON|GOLD|LAPIS|REDSTONE|NETHER_QUARTZ|EMERALD|DIAMOND>"
+							+ ChatColor.YELLOW + " : Clear a Mine");
+				}
 				if (sender.hasPermission("farm.tree"))
 					sender.sendMessage(ChatColor.AQUA + "- /farm tree" + ChatColor.YELLOW
 							+ " : Switch on tree mode on nearby tree");
+				if (sender.hasPermission("farm.mine"))
+					sender.sendMessage(ChatColor.AQUA
+							+ "- /farm mine <STONE|COAL|IRON|GOLD|LAPIS|REDSTONE|NETHER_QUARTZ|EMERALD|DIAMOND>"
+							+ ChatColor.YELLOW + " : Switch on mine mode for specific mine");
 				if (sender.hasPermission("farm.reload"))
 					sender.sendMessage(ChatColor.AQUA + "- /farm reload" + ChatColor.YELLOW + " : Reload the plugin");
 			} else if ("info".equalsIgnoreCase(args[0])) {
@@ -123,30 +130,24 @@ public class FarmCommand implements CommandExecutor {
 					Farm.get().getTreeManager().addTree(loc, time);
 					p.sendMessage(__.PREFIX + ChatColor.GREEN + "Tree successfully created !");
 				} else if ("mine".equalsIgnoreCase(args[1])) {
-					if (args.length <= 3) {
+					if (args.length <= 2) {
 						p.sendMessage(__.PREFIX + ChatColor.RED
-								+ "Syntax: /farm <add|create> mine <world> <region> [stone|coal|iron|gold|lapis|redstone|nether_quartz|emerald|diamond] [time] [percent]");
+								+ "Syntax: /farm <add|create> mine [STONE|COAL|IRON|GOLD|LAPIS|REDSTONE|NETHER_QUARTZ|EMERALD|DIAMOND] [time] [percent]");
 						return true;
 					}
-					String world = args[2];
-					if (Bukkit.getWorld(world) == null) {
-						p.sendMessage(__.PREFIX + ChatColor.RED + "World " + world + " not found");
-						return true;
-					}
-					String region = args[3];
 					Mine.Type type = Mine.Type.STONE;
-					if (args.length >= 5)
+					if (args.length >= 3)
 						try {
-							type = Mine.Type.valueOf(args[4]);
+							type = Mine.Type.valueOf(args[2]);
 						} catch (Exception ex) {
-							p.sendMessage(__.PREFIX + ChatColor.RED + "Incorrect type " + type);
+							p.sendMessage(__.PREFIX + ChatColor.RED + "Incorrect type " + args[2]);
 							return true;
 						}
 					// 5 seconds
 					int tickTime = 100;
-					if (args.length >= 6)
+					if (args.length >= 4)
 						try {
-							tickTime = Integer.parseInt(args[5]);
+							tickTime = Integer.parseInt(args[3]);
 						} catch (Exception ex) {
 							p.sendMessage(__.PREFIX + ChatColor.RED + "Please enter a correct value for time");
 							return true;
@@ -156,9 +157,9 @@ public class FarmCommand implements CommandExecutor {
 						return true;
 					}
 					int percent = 5;
-					if (args.length >= 7)
+					if (args.length >= 5)
 						try {
-							percent = Integer.parseInt(args[6]);
+							percent = Integer.parseInt(args[4]);
 						} catch (Exception ex) {
 							p.sendMessage(__.PREFIX + ChatColor.RED + "Please enter a correct value for percent");
 							return true;
@@ -167,8 +168,9 @@ public class FarmCommand implements CommandExecutor {
 						p.sendMessage(__.PREFIX + ChatColor.RED + "Percent must be between 0 and 100");
 						return true;
 					}
-					Farm.get().getMineManager().addMine(world, region, type, tickTime, percent);
-					p.sendMessage(__.PREFIX + ChatColor.GREEN + "Mine successfully created !");
+					Farm.get().getMineManager().setMine(type, tickTime, percent);
+					p.sendMessage(__.PREFIX + ChatColor.GREEN + "Mine " + args[2]
+							+ " successfully updated ! (tickTime = " + tickTime + ", percent = " + percent + ")");
 				}
 			} else if ("remove".equalsIgnoreCase(args[0])) {
 				if (!(sender instanceof Player)) {
@@ -182,7 +184,7 @@ public class FarmCommand implements CommandExecutor {
 				}
 
 				if (args.length <= 1) {
-					p.sendMessage(__.PREFIX + ChatColor.RED + "Syntax: /farm remove <farm|tree>");
+					p.sendMessage(__.PREFIX + ChatColor.RED + "Syntax: /farm remove <farm|tree|mine>");
 					return true;
 				}
 
@@ -203,13 +205,27 @@ public class FarmCommand implements CommandExecutor {
 					Farm.get().getTreeManager().removeTree(t);
 					p.sendMessage(__.PREFIX + ChatColor.GREEN + "Tree successfully removed !");
 				} else if ("mine".equalsIgnoreCase(args[1])) {
-					Mine m = Farm.get().getMineManager().getInsideMine(p.getLocation());
-					if (m == null) {
-						p.sendMessage(__.PREFIX + ChatColor.RED + "No mine found !");
+					if (args.length <= 2) {
+						p.sendMessage(__.PREFIX + ChatColor.RED
+								+ "Syntax: /farm remove mine <STONE|COAL|IRON|GOLD|LAPIS|REDSTONE|NETHER_QUARTZ|EMERALD|DIAMOND>");
 						return true;
 					}
-					Farm.get().getMineManager().removeMine(m);
-					p.sendMessage(__.PREFIX + ChatColor.GREEN + "Mine successfully removed !");
+					Mine.Type type = Mine.Type.STONE;
+					if (args.length >= 3)
+						try {
+							type = Mine.Type.valueOf(args[2]);
+						} catch (Exception ex) {
+							p.sendMessage(__.PREFIX + ChatColor.RED + "Incorrect type " + args[2]);
+							return true;
+						}
+					Mine m = Farm.get().getMineManager().getMine(type);
+					if (m == null) {
+						p.sendMessage(__.PREFIX + ChatColor.RED + "Mine " + args[2]
+								+ " wasn't found but it should be, please contact an administrator");
+						return true;
+					}
+					Farm.get().getMineManager().clearMine(m);
+					p.sendMessage(__.PREFIX + ChatColor.GREEN + "Mine successfully cleared !");
 				}
 
 			} else if ("tree".equalsIgnoreCase(args[0])) {
@@ -224,6 +240,30 @@ public class FarmCommand implements CommandExecutor {
 				}
 				Tree tree = Farm.get().getTreeManager().getNearbyTree(p.getLocation());
 				Farm.get().getTreeManager().treeMode(p, tree);
+			} else if ("mine".equalsIgnoreCase(args[0])) {
+				if (!(sender instanceof Player)) {
+					sender.sendMessage(__.PREFIX + ChatColor.RED + "You must be a player to execute this command");
+					return true;
+				}
+				Player p = (Player) sender;
+				if (!p.hasPermission("farm.mine")) {
+					p.sendMessage(__.PREFIX + ChatColor.RED + "You don't have permission to execute this command");
+					return true;
+				}
+				if (args.length <= 1) {
+					p.sendMessage(__.PREFIX + ChatColor.RED
+							+ "Syntax: /farm mine <STONE|COAL|IRON|GOLD|LAPIS|REDSTONE|NETHER_QUARTZ|EMERALD|DIAMOND>");
+					return true;
+				}
+				Mine.Type type = Mine.Type.STONE;
+				try {
+					type = Mine.Type.valueOf(args[1]);
+				} catch (Exception ex) {
+					p.sendMessage(__.PREFIX + ChatColor.RED + "Incorrect type " + args[1]);
+					return true;
+				}
+				Mine mine = Farm.get().getMineManager().getMine(type);
+				Farm.get().getMineManager().mineMode(p, mine);
 			} else if ("reload".equalsIgnoreCase(args[0])) {
 				if (!sender.hasPermission("farm.reload")) {
 					sender.sendMessage(__.PREFIX + ChatColor.RED + "You don't have permission to execute this command");

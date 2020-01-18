@@ -25,20 +25,14 @@ import java.io.File;
  */
 public class ConfigManager {
 	private Config config;
-	private String mineWorldName;
-	private String mineRegion;
+	private String world;
 
 	public ConfigManager() {
 		config = new Config(new File("plugins" + File.separator + "Farm" + File.separator + "config.yml"));
-		mineWorldName = config.getString("mine_world_region");
-		mineRegion = config.getString("mine_region");
+		world = config.getString("world");
 	}
 
-	public String getMineWorldName() {
-		return mineWorldName;
-	}
-
-	public String getMineRegion() {
-		return mineRegion;
+	public String getWorld() {
+		return world;
 	}
 }

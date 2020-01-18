@@ -46,7 +46,7 @@ public class Farm extends JavaPlugin {
 		configManager = new ConfigManager();
 		farmManager = new FarmManager();
 		treeManager = new TreeManager();
-		mineManager = new MineManager(configManager.getMineWorldName(), configManager.getMineRegion());
+		mineManager = new MineManager();
 		Bukkit.getPluginCommand("farm").setExecutor(farmCommand = new FarmCommand());
 		Bukkit.getLogger().log(Level.INFO, "Plugin loaded");
 	}

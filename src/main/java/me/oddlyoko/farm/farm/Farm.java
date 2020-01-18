@@ -1,7 +1,10 @@
 package me.oddlyoko.farm.farm;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 
@@ -102,6 +105,7 @@ public class Farm {
 				}
 				if (toGrow.size() > 0 && tick % 8 == 0) {
 					// Copy to prevent Modification Exception
+					List<Entry<Block, Integer>> toUpdate = new ArrayList<>();
 					for (Block b : new ArrayList<>(toGrow)) {
 						// Don't update if chunk is not loaded
 						if (!b.getChunk().isLoaded())
@@ -113,13 +117,19 @@ public class Farm {
 								toGrow.remove(b);
 								continue;
 							}
-							age.setAge(a);
-							Bukkit.getScheduler().runTask(me.oddlyoko.farm.Farm.get(), () -> {
-								b.setBlockData(age);
-							});
+							toUpdate.add(new AbstractMap.SimpleEntry<Block, Integer>(b, a));
 						} else
 							toGrow.remove(b);
 					}
+					Bukkit.getScheduler().runTask(me.oddlyoko.farm.Farm.get(), () -> {
+						for (Entry<Block, Integer> e : toUpdate) {
+							if (!(e.getKey() instanceof Ageable))
+								continue;
+							Ageable age = (Ageable) e.getKey().getBlockData();
+							age.setAge(e.getValue());
+							e.getKey().setBlockData(age);
+						}
+					});
 				}
 				if (tick % 5 == 0) {
 					center.getWorld().spawnParticle(Particle.REDSTONE, center, 10, 0, 0, 0, 0, white);
