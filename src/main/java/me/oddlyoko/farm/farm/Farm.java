@@ -107,6 +107,11 @@ public class Farm {
 					// Copy to prevent Modification Exception
 					List<Entry<Block, Integer>> toUpdate = new ArrayList<>();
 					for (Block b : new ArrayList<>(toGrow)) {
+						if (b == null) {
+							// Error
+							toGrow.remove(b);
+							continue;
+						}
 						// Don't update if chunk is not loaded
 						if (!b.getChunk().isLoaded())
 							continue;
@@ -123,7 +128,7 @@ public class Farm {
 					}
 					Bukkit.getScheduler().runTask(me.oddlyoko.farm.Farm.get(), () -> {
 						for (Entry<Block, Integer> e : toUpdate) {
-							if (!(e.getKey() instanceof Ageable))
+							if (!(e.getKey().getBlockData() instanceof Ageable))
 								continue;
 							Ageable age = (Ageable) e.getKey().getBlockData();
 							age.setAge(e.getValue());

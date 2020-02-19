@@ -3,6 +3,7 @@ package me.oddlyoko.farm.mine;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
 
@@ -10,15 +11,20 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.FileUtil;
 
 import me.oddlyoko.farm.Farm;
@@ -50,11 +56,13 @@ public class MineManager implements Listener {
 	private List<Mine> mines;
 	private Player playerMineMode;
 	private Mine mineMineMode;
+	private HashMap<Location, Player> blockBreaks;
 
 	public MineManager() {
 		config = new Config(new File("plugins" + File.separator + "Farm" + File.separator + "mines.yml"));
 		mines = new ArrayList<>();
 		world = Bukkit.getWorld(Farm.get().getConfigManager().getWorld());
+		blockBreaks = new HashMap<>();
 		Bukkit.getPluginManager().registerEvents(this, Farm.get());
 		reload();
 	}
@@ -242,5 +250,23 @@ public class MineManager implements Listener {
 		// Don't cancel for drop
 		e.setCancelled(false);
 		m.mine(b);
+		blockBreaks.put(b.getLocation(), e.getPlayer());
+		Bukkit.getScheduler().runTaskLater(Farm.get(), () -> {
+			blockBreaks.remove(b.getLocation());
+		}, 1);
+	}
+
+	@EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+	public void onItemSpawn(ItemSpawnEvent e) {
+		if (e.getEntityType() != EntityType.DROPPED_ITEM)
+			return;
+		ItemStack is = ((Item) e.getEntity()).getItemStack();
+		Location loc = new Location(e.getLocation().getWorld(), e.getLocation().getBlockX(),
+				e.getLocation().getBlockY(), e.getLocation().getBlockZ());
+		if (!blockBreaks.containsKey(loc))
+			return;
+		Player p = blockBreaks.get(loc);
+		e.setCancelled(true);
+		p.getInventory().addItem(is);
 	}
 }
